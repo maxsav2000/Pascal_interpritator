@@ -1,0 +1,30 @@
+program Hello;
+var
+x,z,e,s,q,h,y : integer;
+g,a,sdf,qwe,asd : boolean;
+begin
+while true do
+    begin
+        x:=5;
+        h:=1;
+        if x<>y then x:=0-234234;
+        read(x);
+        write(x);
+        if ((x+25)<>(y+12)) then x:=324
+        else x:=2342314;
+        while true do
+            begin
+                x:=5;
+                h:=1;
+                if x<>y then x:=0-234234;
+                read(x);
+                write(x);
+                if (true and false) then x:=324
+                else x:=2342314;
+            end;
+    end;
+g:=true;
+asd:=false;
+
+end.
+

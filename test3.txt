@@ -1,0 +1,34 @@
+{$mode TP}
+{$R+,B+,X-}
+{$codepage UTF-8}
+program task_10_16v;
+
+var
+    i, j, s: integer;
+    fl: boolean;
+begin
+    write(x);
+    read(c);
+    i := 1;
+    j := 0;
+    while c <> x do
+        begin
+            i := i + 1;
+            read(c);
+            fl := true;
+            if (c = x) or (c = q) then
+                begin
+
+                    if fl then
+                        begin
+                            j := j + 1;
+                            helpplz := sl;
+                        end;
+                    i := 1;
+                    if c <> x then
+                        read(c);
+                end;
+        end;
+    write(helpplz);
+
+end.

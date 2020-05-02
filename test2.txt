@@ -1,0 +1,7 @@
+program tas;
+var a,z :integer;
+    b,c :boolean;
+begin
+    b := a > z;
+
+end.

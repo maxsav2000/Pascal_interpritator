@@ -1,0 +1,10 @@
+{$mode TP}
+{$R+,B+,X-}
+{$codepage UTF-8}
+program task_9_27;
+var
+    i, j: integer;
+    fl,j: boolean;
+begin
+
+end.
