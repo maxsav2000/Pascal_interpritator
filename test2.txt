@@ -1,7 +1,12 @@
+{write  5 to 1}
 program tas;
-var a,z :integer;
-    b,c :boolean;
+var x:integer;
+    g:boolean;
+    q:string;
 begin
-    b := a > z;
-
+    x:=5;
+    while (x>0) do begin
+        write(x);
+        x:=x-1;
+    end;
 end.

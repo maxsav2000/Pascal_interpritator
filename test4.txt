@@ -1,10 +1,11 @@
-{$mode TP}
-{$R+,B+,X-}
-{$codepage UTF-8}
+{test operations}
 program task_9_27;
 var
-    i, j: integer;
-    fl,j: boolean;
+    x: integer;
+    flag: boolean;
 begin
-
+    x:=10*10-50+(1+1)/2;
+    flag:=true and true;
+    write(x);   {x = 51}
+    write(flag);  {flag = true}
 end.

@@ -1,26 +1,14 @@
-{$mode TP}
-{$R+,B+,X-}
-{$codepage UTF-8}
+{sum  1 to N}
 program task_9_27;
 var
-    i, j, n, a, x: integer;
-    fl: boolean;
+    i, N, sum : integer;
 begin
-    fl := true;
-    i := 1;
-    while (i <> n) and fl do
-        begin
-            j := i + 1;
-            while (j <> n) and fl do
-                begin
-                    if a <> a then
-                        fl := false;
-                    j := j + 1;
-                end;
-            i := i + 1;
-        end;
-    if fl then
-        write(x)
-    else
-        write(x);
+    write('Enter N');
+    read(N);
+    i:=0;
+    while(i<N) do begin
+        i:=i+1;
+        sum:=sum+i;
+    end;
+    write(sum);
 end.
