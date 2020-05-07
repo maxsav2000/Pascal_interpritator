@@ -757,9 +757,9 @@ private:
     Lexeme curr_lexeme;
     Type curr_type;
     std::string curr_val_lexeme;
-    std::stack <std::string> st_names_val;
-    std::stack <Type> st_types_val;
     int index_curr_lexeme;
+    std::stack <std::string> st_names_val; // Стек для имен переменных для заноса в таблицу переменных
+    std::stack <Type> st_types_val; // Стек типов для семантического анализа
     std::vector<Lexeme> All_Lexeme;
     void check_is_bool();
     void check_ID(std::string&);
@@ -837,15 +837,14 @@ public:
         }
 
     };
-    std::vector<std::shared_ptr<execution::Operation>> operations;
-    std::map<std::string,std::shared_ptr<execution::PolymorphicValue>> Table_op;
-    std::map<std::string,Variable> TableID;
+    std::vector<std::shared_ptr<execution::Operation>> operations; //Полиз
+    std::map<std::string,std::shared_ptr<execution::PolymorphicValue>> Table_op; // Таблица переменных для выполнения
+    std::map<std::string,Variable> TableID; //Таблица переменных для контроля семантических условий
     explicit Parser(std::vector<Lexeme>& All_Lex){
         curr_type=Lex_null;
         All_Lexeme=All_Lex;
         index_curr_lexeme=-1;
     }
-    std::vector<Lexeme> Poliz;
     void analyze();
 };//Parser
 void Parser::analyze() {
@@ -859,7 +858,7 @@ void Parser::analyze() {
     std::cout << "Success" << std::endl;
 
 }
-void Parser::P() {//P-> program ID; D1 B .
+void Parser::P() {
     std::stringstream ss;
     if (curr_type == keyword_program)
         Get_lex ();
@@ -887,8 +886,8 @@ void Parser::P() {//P-> program ID; D1 B .
         ss << "Incorrect lexeme " << curr_lexeme;
         throw std::runtime_error(ss.str());
     }
-}
-void Parser::D1() {//D1-> e | var D;{D;}
+}//P-> program ID; D1 B .
+void Parser::D1() {
     std::stringstream ss;
     if (curr_type == keyword_var){
         Get_lex ();
@@ -902,11 +901,12 @@ void Parser::D1() {//D1-> e | var D;{D;}
             }
         }
     }
-}
-void Parser::D(){// D-> ID{,ID}:[int | bool | string ]
+}//D1-> e | var D;{D;}
+void Parser::D(){
     std::stringstream ss;
     if (curr_type == ID){
         st_names_val.push(curr_val_lexeme);
+        //Считываем имена переменных и заносим их в стек, для того чтобы заполнить таблицу переменных
         Get_lex();
     }else{
         ss << "Incorrect lexeme " << curr_lexeme;
@@ -930,6 +930,7 @@ void Parser::D(){// D-> ID{,ID}:[int | bool | string ]
     }
     if (curr_type == keyword_integer || curr_type == keyword_boolean || curr_type == keyword_string){
         while (!st_names_val.empty()){
+            //Все накопелнные имена переменных закосим в таблицу переменных с значениями по умолчанию
             std::string str = st_names_val.top();
             st_names_val.pop();
             Variable var(curr_type);
@@ -957,8 +958,8 @@ void Parser::D(){// D-> ID{,ID}:[int | bool | string ]
         ss << "Incorrect lexeme " << curr_lexeme;
         throw std::runtime_error(ss.str());
     }
-}
-void Parser::B() { //-> begin e|S;{S;} end
+}// D-> ID{,ID}:[int | bool | string ]
+void Parser::B() {
     std::stringstream ss;
     if (curr_type == keyword_begin){
         Get_lex();
@@ -976,16 +977,14 @@ void Parser::B() { //-> begin e|S;{S;} end
         }
     }
     Get_lex();
-}
+}//-> begin e|S;{S;} end
 void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check_is_bool> then S else S |
     // if E<check_is_bool> then S |while E<check_is_bool> do S | B | read(ID<check_in_table>) | write(E <pop>|e) | e
     std::stringstream ss;
     if (curr_type == ID){
         check_ID(curr_val_lexeme);
-        Poliz.emplace_back(Lexeme(POLIZ_adress,curr_val_lexeme));
         execution::Address_var adr_(curr_val_lexeme);
         operations.emplace_back(new execution::ValueOperation(adr_));
-        //TODO
         Get_lex();
         if (curr_type == Lex_Assign){
             Get_lex();
@@ -994,31 +993,20 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             throw std::runtime_error(ss.str());
         }
         E();
-        operations.emplace_back(execution::kBinaries.at(std::make_tuple(execution::Assign, execution::Address, Type_to_typeop.at(st_types_val.top())))());
+        operations.emplace_back(execution::kBinaries.at(std::make_tuple(execution::Assign, execution::Address,
+                Type_to_typeop.at(st_types_val.top())))());
         check_eq_two_last_types();
-        //operations.emplace_back(execution::kBinaries.at(std::make_tuple(execution::Assign, execution::Address, Type_to_typeop.at(st_types_val.top()))));
-        Poliz.emplace_back(Lexeme(Lex_Assign));
-        //TODO
     }else if (curr_type == keyword_if){
             Get_lex();
             E();
             check_is_bool();
 
-            unsigned int place_label_goto_end_ifelse_block = Poliz.size();
             size_t place_label_goto_end_ifelse_block_ = operations.size();
-            //TODO
             // запоминаем место куда будем записывать адрес
             // перехода место после окончания блока then
-            Poliz.emplace_back(Lexeme()); // кладем пустую лексему
-            operations.emplace_back(new execution::ValueOperation(static_cast<size_t>(0)));
-
+            operations.emplace_back(new execution::ValueOperation(static_cast<size_t>(0)));// кладем пустую лексему
             operations.emplace_back(execution::kBinaries.at(std::make_tuple(execution::IfNotGoTo,
                     execution::Logic, execution::Label))());
-
-
-            //TODO
-            Poliz.emplace_back(Lexeme(POLIZ_IF_GO));
-            //TODO
 
             if (curr_type == keyword_then){
                 Get_lex();
@@ -1028,38 +1016,22 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             }
             S();
 
-            unsigned int place_label_goto_start_elseblock = Poliz.size(); // место для адреса перехода после окончания then блока
             size_t place_label_goto_start_elseblock_ = operations.size();
-             //TODO
-            Poliz.emplace_back(Lexeme()); // кладем пустую лексему чтобы потом ее заполнить адресом
             operations.emplace_back(new execution::ValueOperation(static_cast<size_t>(0)));
 
-             //TODO
-            Poliz.emplace_back(Lexeme(POLIZ_GO));
             operations.push_back(execution::kUnaries.at(std::make_tuple(execution::GoTo, execution::Label)));
 
-            //TODO
-            Poliz[place_label_goto_end_ifelse_block]=Lexeme(POLIZ_label, (unsigned int)Poliz.size());
             operations[place_label_goto_end_ifelse_block_].reset(new execution::ValueOperation(operations.size()));
-            //TODO
-            // теперь мы знаем адрес куда переходить если if блок не срабоатал
-
+            // теперь мы заполняем адрес куда переходить если if блок не срабоатал
 
             if (curr_type == keyword_else){
                 Get_lex();
                 S();
-
-                Poliz[place_label_goto_start_elseblock]=Lexeme(POLIZ_label, (unsigned int)Poliz.size());
                 operations[place_label_goto_start_elseblock_].reset(new execution::ValueOperation(operations.size()));
-
-                //TODO
                 // Заполняем адрес перехода в конец if then else блока
 
             }else if (curr_type == Lex_Semicolon){
-                Poliz[place_label_goto_start_elseblock]=Lexeme(POLIZ_label, (unsigned int)Poliz.size());
                 operations[place_label_goto_start_elseblock_].reset(new execution::ValueOperation(operations.size()));
-
-                //TODO
                 //если else блока нет то заполняем метку концом then блока
             }else{
                 ss << "Incorrect lexeme " << curr_lexeme;
@@ -1067,25 +1039,17 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             }
         }//Parser::S
     else if (curr_type == keyword_while){
-        unsigned int place_label_start_while = Poliz.size(); // Место куда будем переходить после окончание очередного блока цикла
+        // Место куда будем переходить после окончание очередного блока цикла
         size_t place_label_start_while_ = operations.size();
-        //TODO
         Get_lex();
         E();
         check_is_bool();
-
-        unsigned int place_label_goto_end_while = Poliz.size();
-        //TODO
         size_t place_label_goto_end_while_ = operations.size();
         //  Место для метки перехода по условию если условие цикла не сработало
-        Poliz.emplace_back(Lexeme());   // Резервируем место под метку
         operations.emplace_back(new execution::ValueOperation(static_cast<size_t>(0)));
-
-        //TODO
-        Poliz.emplace_back(Lexeme(POLIZ_IF_GO));
+        // Резервируем место под метку
         operations.emplace_back(execution::kBinaries.at(std::make_tuple(execution::IfNotGoTo,
                                                                         execution::Logic, execution::Label))());
-        //TODO
 
         if (curr_type == keyword_do){
             Get_lex();
@@ -1094,19 +1058,10 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             throw std::runtime_error(ss.str());
         }
         S();
-
-        Poliz[place_label_start_while]= Lexeme(POLIZ_label); // Заполняем место для перехода в самое начало цикла
-        //err
         operations.emplace_back(new execution::ValueOperation(place_label_start_while_));
-        //TODO
-        Poliz.emplace_back(Lexeme(POLIZ_GO)); // Переходим по ней
         operations.push_back(execution::kUnaries.at(std::make_tuple(execution::GoTo, execution::Label)));
 
-        //TODO
-        Poliz[place_label_goto_end_while]=Lexeme(POLIZ_label, (unsigned int)Poliz.size());
         operations[place_label_goto_end_while_].reset(new execution::ValueOperation(operations.size()));
-
-        //TODO
         // Заполняем адрес для перехода если условие цикла не выполнено
 
     }
@@ -1115,35 +1070,37 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
     }
     else if (curr_type == keyword_read){
         Get_lex();
+
         if (curr_type == Lex_LeftParenthesis){
             Get_lex();
         }else{
             ss << "Incorrect lexeme " << curr_lexeme;
             throw std::runtime_error(ss.str());
         }
+
         if (curr_type == ID){
             if (TableID.count(curr_val_lexeme)==0){
                 ss << "Variable not declared " << curr_val_lexeme;
                 throw std::runtime_error(ss.str());
             }
-            Poliz.emplace_back(Lexeme(POLIZ_adress, curr_val_lexeme));
+
             execution::Address_var adr_(curr_val_lexeme);
             operations.emplace_back(new execution::ValueOperation(adr_));
-            //TODO
+
             Get_lex();
         }else{
             ss << "Incorrect lexeme " << curr_lexeme;
             throw std::runtime_error(ss.str());
         }
+
         if (curr_type == Lex_RightParenthesis){
             Get_lex();
         }else{
             ss << "Incorrect lexeme " << curr_lexeme;
             throw std::runtime_error(ss.str());
         }
-        Poliz.emplace_back(Lexeme(keyword_read));
+
         operations.push_back(execution::kUnaries.at(std::make_tuple(execution::Read, execution::Address)));
-        //TODO
     }
     else if (curr_type == keyword_write){
         Get_lex();
@@ -1153,15 +1110,16 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             ss << "Incorrect lexeme " << curr_lexeme;
             throw std::runtime_error(ss.str());
         }
-        if (curr_type == Lex_RightParenthesis){
 
-        }else{
+        if (curr_type != Lex_RightParenthesis){
             E();
-            Poliz.emplace_back(Lexeme(keyword_write));
 
-            operations.push_back(execution::kUnaries.at(std::make_tuple(Type_to_op.at(keyword_write),Type_to_typeop.at(st_types_val.top()))));
+            operations.push_back(execution::kUnaries.at(std::make_tuple(Type_to_op.at(keyword_write),
+                    Type_to_typeop.at(st_types_val.top()))));
+
             st_types_val.pop();
         }
+
         if (curr_type == Lex_RightParenthesis){
             Get_lex();
         }else{
@@ -1172,9 +1130,10 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
     }
 }
 bool Comparison(Type type){
-    return (type == Lex_Equal || type == Lex_NotEqual || type == Lex_Less || type == Lex_LessOrEqual || type == Lex_Great || type == Lex_GreatOrEqual);
+    return (type == Lex_Equal || type == Lex_NotEqual || type == Lex_Less ||
+            type == Lex_LessOrEqual || type == Lex_Great || type == Lex_GreatOrEqual);
 }
-void Parser::E() { // E-> E1 [ = | < | > | >= | <= | <>] <push op> E1 <check op> | E1
+void Parser::E() {
     E1();
     if (Comparison(curr_type)){
         st_types_val.push(curr_type);
@@ -1182,8 +1141,8 @@ void Parser::E() { // E-> E1 [ = | < | > | >= | <= | <>] <push op> E1 <check op>
         E1();
         check_Operation();
     }
-}
-void Parser::E1() {// E1 -> T { [+|-|or] <push op> T <check op>>}
+}// E-> E1 [ = | < | > | >= | <= | <>] <push op> E1 <check op> | E1
+void Parser::E1() {
     T();
     while(curr_type == Lex_Add || curr_type == Lex_Sub || curr_type == keyword_or){
         st_types_val.push(curr_type);
@@ -1191,8 +1150,8 @@ void Parser::E1() {// E1 -> T { [+|-|or] <push op> T <check op>>}
         T();
         check_Operation();
     }
-}
-void Parser::T() { // T-> F{[ * | / | and] <push op> F <check op>}
+}// E1 -> T { [+|-|or] <push op> T <check op>> }
+void Parser::T() {
     F();
     while(curr_type == Lex_Mul || curr_type == Lex_Div || curr_type == keyword_and){
         st_types_val.push(curr_type);
@@ -1200,18 +1159,15 @@ void Parser::T() { // T-> F{[ * | / | and] <push op> F <check op>}
         F();
         check_Operation();
     }
-}
-void Parser::F() {//ID <check ID>| Numb <push int>| true <push bool> | false <push bool>| not F  <check not>| Const_str <push str>|(E)
+}// T-> F {[ * | / | and] <push op> F <check op>}
+void Parser::F() {
     if (curr_type == ID){
         check_ID(curr_val_lexeme);
-        Poliz.push_back(curr_lexeme);
         operations.emplace_back(new execution::TakeInfoOperation(Table_op.at(curr_val_lexeme)));
         //operations.emplace_back(Table_op.at(curr_val_lexeme));
-        //TODO
         Get_lex();
     }else if(curr_type == Lex_Number){
         st_types_val.push(keyword_integer);
-        Poliz.push_back(curr_lexeme);
 
         int val_int = std::stoi(curr_val_lexeme);
         operations.emplace_back(new execution::ValueOperation(val_int));
@@ -1220,11 +1176,9 @@ void Parser::F() {//ID <check ID>| Numb <push int>| true <push bool> | false <pu
         st_types_val.push(keyword_boolean);
         bool val_bool=true;
         operations.emplace_back(new execution::ValueOperation(val_bool));
-        Poliz.push_back(curr_lexeme);
         Get_lex();
     }else if(curr_type == keyword_false){
         st_types_val.push(keyword_boolean);
-        Poliz.push_back(curr_lexeme);
         bool val_bool=false;
         operations.emplace_back(new execution::ValueOperation(val_bool));
         Get_lex();
@@ -1244,7 +1198,6 @@ void Parser::F() {//ID <check ID>| Numb <push int>| true <push bool> | false <pu
         }
     }else if (curr_type == Lex_ConstStr){
         st_types_val.push(keyword_string);
-        Poliz.push_back(curr_lexeme);
 
         const std::string val_str = curr_val_lexeme;
         operations.emplace_back(new execution::ValueOperation(val_str));
@@ -1254,7 +1207,7 @@ void Parser::F() {//ID <check ID>| Numb <push int>| true <push bool> | false <pu
         ss << "Incorrect lexeme " << curr_lexeme;
         throw std::runtime_error(ss.str());
     }
-}
+}//ID <check ID>| Numb <push int>| true <push bool> | false <push bool>| not F  <check not>| Const_str <push str>|(E)
 
 void Parser::check_ID(std::string& name_ID) {
     if (TableID.count(name_ID) != 0){
@@ -1264,7 +1217,7 @@ void Parser::check_ID(std::string& name_ID) {
         ss << "Variable not declared " << name_ID;
         throw std::runtime_error(ss.str());
     }
-}
+}//Проверяет индефикатор на наличие в таблице переменных
 
 void Parser::check_Operation() {
     Type type_var_l, type_var_r, type_op, type_ans=Lex_null, type_types_operands=Lex_null;
@@ -1312,22 +1265,19 @@ void Parser::check_Operation() {
         ss << "Wrong types are in operation " << type_op;
         throw std::runtime_error(ss.str());
     }
-    Lexeme lex(type_op);
-    Poliz.push_back(lex);
-    operations.emplace_back(execution::kBinaries.at(std::make_tuple(Type_to_op.at(type_op), Type_to_typeop.at(type_var_l), Type_to_typeop.at(type_var_r)))());
-    //TODO
-}
+
+    operations.emplace_back(execution::kBinaries.at(std::make_tuple(Type_to_op.at(type_op),
+                                                       Type_to_typeop.at(type_var_l), Type_to_typeop.at(type_var_r)))());
+} // Провряет валидность бинарной операции и заносит результат в стек типов, и заносит операцию в полиз
 void Parser::check_not() {
     if (st_types_val.top( ) != keyword_boolean ) {
         std::stringstream ss;
         ss << "Wrong types are in operation not" ;
         throw std::runtime_error(ss.str());
     }else{
-        Lexeme lex(keyword_not);
-        Poliz.push_back(lex);
         operations.push_back(execution::kUnaries.at(std::make_tuple(execution::Not, execution::Logic)));
     }
-}
+}//Проверяет верхний элемент на bool и заносит в полиз операцию not
 void Parser::check_eq_two_last_types(){
     Type type;
     type = st_types_val.top();
@@ -1341,7 +1291,7 @@ void Parser::check_eq_two_last_types(){
         ss << "Wrong types are in := " ;
         throw std::runtime_error(ss.str());
     }
-}
+}//забирает два верних элемента из стека и проверяет на равенство
 void Parser::check_is_bool() {
     Type type = st_types_val.top();
     if (type == keyword_boolean){
@@ -1351,7 +1301,7 @@ void Parser::check_is_bool() {
         ss << "Types in not bool " ;
         throw std::runtime_error(ss.str());
     }
-}
+}//забирает последний элемент и проверяет он bool
 
 namespace execution{
     class Executor{
@@ -1359,9 +1309,9 @@ namespace execution{
         std::vector<std::shared_ptr<execution::Operation>> operations;
         Context context;
 
-
     public:
-        Executor(std::map<std::string,std::shared_ptr<execution::PolymorphicValue>>&, std::vector<std::shared_ptr<execution::Operation>>&);
+        Executor(std::map<std::string,std::shared_ptr<PolymorphicValue>>&,
+                 std::vector<std::shared_ptr<Operation>>&);
         void Perform(){
             while (context.operation_index < operations.size()) {
                 const auto& operation = operations[context.operation_index];
@@ -1369,16 +1319,13 @@ namespace execution{
                 operation->Do(context);
             }
         }
-        std::map<std::string,std::shared_ptr<execution::Operation>>TableOP;
+        std::map<std::string,std::shared_ptr<Operation>>TableOP;
     };//Executor
-    Executor::Executor(std::map<std::string,std::shared_ptr<execution::PolymorphicValue>>& TableOP_, std::vector<std::shared_ptr<execution::Operation>>& ops){
-        operations = ops;
 
-        std::map<std::string,std::shared_ptr<execution::PolymorphicValue>>& ref= TableOP_;
-        std::shared_ptr<std::map<std::string,std::shared_ptr<execution::PolymorphicValue>>> sh_ptr;
-        sh_ptr.make_shared(TableOP_);
+    Executor::Executor(std::map<std::string,std::shared_ptr<PolymorphicValue>>& TableOP_,
+                       std::vector<std::shared_ptr<Operation>>& ops){
+        operations = ops;
         context.Table_Op_shr = TableOP_;
-        //TODO TableID
     }
 }
 
