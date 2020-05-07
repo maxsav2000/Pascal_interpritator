@@ -60,10 +60,6 @@ enum Type {
     keyword_read,
     keyword_write,
     keyword_begin,
-    POLIZ_adress,
-    POLIZ_label,
-    POLIZ_GO,
-    POLIZ_IF_GO
 };
 const std::unordered_map<char, Type> kSingleSeparators{
         {'+', Lex_Add},
@@ -797,8 +793,6 @@ private:
             {keyword_not,execution::Not},
             {keyword_or,execution::Or},
             {keyword_and,execution::And},
-            {POLIZ_GO,execution::GoTo},
-            {POLIZ_IF_GO,execution::IfNotGoTo}
     };
     const std::map<Type,execution::ValueType > Type_to_typeop{
             {keyword_string,execution::Str},
@@ -977,7 +971,7 @@ void Parser::B() {
         }
     }
     Get_lex();
-}//-> begin e|S;{S;} end
+}//B-> begin e|S;{S;} end
 void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check_is_bool> then S else S |
     // if E<check_is_bool> then S |while E<check_is_bool> do S | B | read(ID<check_in_table>) | write(E <pop>|e) | e
     std::stringstream ss;
