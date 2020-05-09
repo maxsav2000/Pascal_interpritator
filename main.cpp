@@ -118,35 +118,48 @@ private:
     Type type;
     std::string value;
     unsigned int value_int;
+    int line_number;
+
 public:
     Lexeme(){
         boolean_value= false;
         type=Lex_null;
         value.clear();
         value_int=0;
+        line_number=0;
     }
     explicit Lexeme(Type curr_type){
         boolean_value= true;
         type=curr_type;
         value.clear();
         value_int=0;
+        line_number=0;
     }
     Lexeme(Type curr_type,char b){
         boolean_value= true;
         type=curr_type;
         value.push_back(b);
         value_int=0;
+        line_number=0;
     }
     Lexeme(Type curr_type,const std::string& curr_val){
         boolean_value= true;
         type=curr_type;
         value=curr_val;
         value_int=0;
+        line_number=0;
     }
     explicit Lexeme(Type curr_type, unsigned int val){
         boolean_value = true;
         type = curr_type;
         value_int = val;
+        line_number=0;
+    }
+    void Put_line_number(int ln){
+        line_number=ln;
+    }
+    int Get_line_number(){
+        return line_number;
     }
     Type get_type() const{
         return type;
@@ -158,7 +171,7 @@ public:
         return value_int;
     }
     friend std::ostream& operator<< (std::ostream& s, const Lexeme& lex){
-        s << lex.type << ' ' << lex.value;
+        s  << lex.value << " Line Number: " << lex.line_number;
         if (lex.value_int!=0){
             s << lex.value_int;
         }
@@ -228,6 +241,7 @@ std::vector<Lexeme> lexical_analysis (std::string& file) {
                     auto it = kSingleSeparators.find(a);
                     if (it != kSingleSeparators.end()) {
                         Lexeme lex(it->second,it->first);
+                        lex.Put_line_number(current_number_string);
                         All_Lexeme.push_back(lex);
                     }else{
                         std::stringstream ss;
@@ -243,14 +257,19 @@ std::vector<Lexeme> lexical_analysis (std::string& file) {
                     buf.push_back(a);
                 }else{
                     input.unget();
+                    if (a == '\n'){
+                        current_number_string--;
+                    }
                     auto it = Keywords.find(buf);
                     current_state=START_STATE;
                     if (it != Keywords.end()){
                         Lexeme lex(it->second, it->first);
+                        lex.Put_line_number(current_number_string);
                         All_Lexeme.push_back(lex);
                         buf.clear();
                     }else{
                         Lexeme lex(ID,buf);
+                        lex.Put_line_number(current_number_string);
                         buf.clear();
                         All_Lexeme.push_back(lex);
                     }
@@ -263,7 +282,11 @@ std::vector<Lexeme> lexical_analysis (std::string& file) {
                     buf+=a;
                 }else{
                     input.unget();
+                    if (a == '\n'){
+                        current_number_string--;
+                    }
                     Lexeme lex(Lex_Number, buf);
+                    lex.Put_line_number(current_number_string);
                     All_Lexeme.push_back(lex);
                     buf.clear();
                     current_state=START_STATE;
@@ -293,8 +316,12 @@ std::vector<Lexeme> lexical_analysis (std::string& file) {
                     char last_char = buf[0];
                     auto it = kSingleSeparators.find(last_char);
                     Lexeme lex(it->second,it->first);
+                    lex.Put_line_number(current_number_string);
                     All_Lexeme.push_back(lex);
                     input.unget();
+                    if (a == '\n'){
+                        current_number_string--;
+                    }
                     buf.clear();
                     return All_Lexeme;
                 }else{
@@ -302,13 +329,18 @@ std::vector<Lexeme> lexical_analysis (std::string& file) {
                     auto it = TwoSymbolSep.find(buf);
                     if (it != Keywords.end()){
                         Lexeme lex(it->second,it->first);
+                        lex.Put_line_number(current_number_string);
                         All_Lexeme.push_back(lex);
                         buf.clear();
                     }else{
                         input.unget();
+                        if (a == '\n'){
+                            current_number_string--;
+                        }
                         char last_char = buf[0];
                         auto it_1 = kSingleSeparators.find(last_char);
                         Lexeme lex(it_1->second,it_1->first);
+                        lex.Put_line_number(current_number_string);
                         All_Lexeme.push_back(lex);
                         buf.clear();
                     }
@@ -330,6 +362,7 @@ std::vector<Lexeme> lexical_analysis (std::string& file) {
 
                     current_state=START_STATE;
                     Lexeme lex(Lex_ConstStr, buf);
+                    lex.Put_line_number(current_number_string);
                     All_Lexeme.push_back(lex);
                     buf.clear();
                 }
@@ -384,17 +417,13 @@ namespace execution {
         operator size_t() const {CheckIs(Label); return place_;}
         operator Address_var() const {CheckIs(Address); return addr_var_;}
 
-        void ChangeInt(int Int_){
-            integral_=Int_;
-        }
-        void ChangeStr(std::string& Str_){
-            str_=Str_;
-        }
         friend std::ostream& operator<< (std::ostream& s, const PolymorphicValue& PV){
             s << PV.type_ << ' ' << PV.integral_ << ' ' << PV.str_;
             return s;
         }
+
         PolymorphicValue &operator= (const PolymorphicValue & PV){
+            CheckIs(PV.type_);
             if (this != & PV){//Защита от самоприсваивания;
                 this->str_=PV.str_;
                 this->logic_=PV.logic_;
@@ -405,13 +434,16 @@ namespace execution {
             return *this;
         }
 
-        Address_var addr_var_;
+        std::string Get_name() const{
+            return addr_var_.Get_name();
+        };
     private:
         ValueType type_;
         std::string str_;
         int integral_ = 0;
         size_t place_ = 0;
         bool logic_ = false;
+        Address_var addr_var_;
 
         void CheckIs(ValueType type) const {
             if (type != type_) {
@@ -493,31 +525,25 @@ namespace execution {
             std::cout << static_cast<T>(op) << std::endl;
         }
     };
+
     template<typename T>
     struct ReadOperation : Operation {
         void Do(Context& context) const final {
             const PolymorphicValue op = context.stack.top();
             context.stack.pop();
-            std::string str;
-            std::cin >> str;
-            bool Is_number_flag = true;
-            for (auto a:str){
-                if (!IsNumber(a)){
-                    Is_number_flag= false;
-                }
+            T param1;
+            std::cin >> param1;
+            if (std::cin.fail()){
+                throw std::logic_error("Type mismatch expected input ");
             }
-            std::string name = op.addr_var_.Get_name();
-            if (Is_number_flag){//Ввели число
-                int Int_=std::stoi(str);
-                context.Table_Op_shr.at(name).get()->ChangeInt(Int_);
-            }else{//Ввели строку
-                context.Table_Op_shr.at(name).get()->ChangeStr(str);
-            }
-            //TODO
+            PolymorphicValue PV(param1);
+            std::string name = op.Get_name();
+            context.Table_Op_shr.at(name).get()->operator=(PV);
+
         }
     };
 
-    struct ChengeOperation : Operation {
+    struct AssignOperation : Operation {
         void Do(Context& context) const final {
             // извлекаем второй операнд
             PolymorphicValue op2 = context.stack.top();
@@ -525,43 +551,31 @@ namespace execution {
             // извлекаем первый операнд
             PolymorphicValue op1 = context.stack.top();
             context.stack.pop();
-            //context.Table_Op_shr.get().at(op.addr_var_.Get_name())=;
 
-            std::string name = op1.addr_var_.Get_name();
+            std::string name = op1.Get_name();
             context.Table_Op_shr.at(name).get()->operator=(op2);
-            //TODO
         }
-        virtual void DoChenge(PolymorphicValue op1,
-                              PolymorphicValue op2) const = 0;
     };
+
+
     template<typename T1, typename T2>
-    struct AssignOperation : ChengeOperation {
-        void DoChenge(PolymorphicValue op1,
-                      PolymorphicValue op2) const final {}
-    };
-
-
-    struct MoveOperation : Operation {
+    struct IfNotGoToOperation : Operation {
         void Do(Context& context) const final {
             // извлекаем второй операнд
-            PolymorphicValue op2 = context.stack.top();
+            T2 param2 = static_cast<T2> (context.stack.top());
             context.stack.pop();
+
             // извлекаем первый операнд
-            PolymorphicValue op1 = context.stack.top();
+            T1 param1 = static_cast<T1> (context.stack.top());
             context.stack.pop();
-            if (not op1){
-                context.operation_index=op2;
+
+            if (not param1){
+                context.operation_index=param2;
             }
         }
-        virtual void DoMove(PolymorphicValue op1,
-                            PolymorphicValue op2) const = 0;
     };
     //IfNotGoToOperation
-    template<typename T1, typename T2>
-    struct IfNotGoToOperation: MoveOperation {
-        void DoMove(PolymorphicValue op1,
-                    PolymorphicValue op2) const final {}
-    };
+
 
     struct MathOperation : Operation {
         void Do(Context& context) const final {
@@ -694,8 +708,6 @@ namespace execution {
             {{Print, Int}, std::shared_ptr<Operation>(new PrintOperation<int>)},
             {{Print, Logic}, std::shared_ptr<Operation>(new PrintOperation<bool>)},
 
-            {{Read, Address}, std::shared_ptr<Operation>(new ReadOperation<Address_var>) },
-
             {{Not, Logic}, std::shared_ptr<Operation>(new NotOperation<bool>)},
 
             {{GoTo, Label}, std::shared_ptr<Operation>(new GoToOperation<size_t>)},
@@ -704,9 +716,13 @@ namespace execution {
     using BinaryKey = std::tuple<OperationType, ValueType, ValueType>;
 
     static const std::map<BinaryKey, OperationBuilder> kBinaries{
-            {{Assign, Address, Logic}, &MakeOp<AssignOperation<Address_var,bool>>},
-            {{Assign, Address, Int}, &MakeOp<AssignOperation<Address_var,int>>},
-            {{Assign, Address, Str}, &MakeOp<AssignOperation<Address_var, std::string>>},
+            {{Assign, Address, Logic}, &MakeOp<AssignOperation>},
+            {{Assign, Address, Int}, &MakeOp<AssignOperation>},
+            {{Assign, Address, Str}, &MakeOp<AssignOperation>},
+
+            {{Read, Address, Int}, &MakeOp<ReadOperation<int>>},
+            {{Read, Address, Str}, &MakeOp<ReadOperation<std::string>>},
+            {{Read, Address, Logic}, &MakeOp<ReadOperation<bool>>},
 
             {{IfNotGoTo, Logic, Label}, &MakeOp<IfNotGoToOperation<bool, size_t>>},
 
@@ -929,7 +945,7 @@ void Parser::D(){
             st_names_val.pop();
             Variable var(curr_type);
             if (TableID.count(str)!=0){
-                ss << "Double initialization " << str;
+                ss << "Double initialization " << str << ' ' << curr_lexeme;
                 throw std::runtime_error(ss.str());
             }
             TableID.insert(std::pair<std::string,Variable>(str,var));
@@ -1072,9 +1088,11 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             throw std::runtime_error(ss.str());
         }
 
+        std::string nameID = curr_val_lexeme;
+
         if (curr_type == ID){
             if (TableID.count(curr_val_lexeme)==0){
-                ss << "Variable not declared " << curr_val_lexeme;
+                ss << "Variable not declared " << curr_lexeme;
                 throw std::runtime_error(ss.str());
             }
 
@@ -1093,8 +1111,10 @@ void Parser::S() {// S-> ID <check_ID> := E <check eq last 2 types>| if E <check
             ss << "Incorrect lexeme " << curr_lexeme;
             throw std::runtime_error(ss.str());
         }
-
-        operations.push_back(execution::kUnaries.at(std::make_tuple(execution::Read, execution::Address)));
+        operations.emplace_back(execution::kBinaries.at(std::make_tuple(execution::Read, execution::Address,
+                Type_to_typeop.at(TableID.at(nameID).Get_Type() )))());
+        //operations.push_back(execution::kUnaries.at(std::make_tuple(execution::Read, execution::Address)));
+        //TODO
     }
     else if (curr_type == keyword_write){
         Get_lex();
@@ -1163,9 +1183,17 @@ void Parser::F() {
     }else if(curr_type == Lex_Number){
         st_types_val.push(keyword_integer);
 
-        int val_int = std::stoi(curr_val_lexeme);
-        operations.emplace_back(new execution::ValueOperation(val_int));
-        Get_lex();
+        try {
+            int val_int = std::stoi(curr_val_lexeme);
+            operations.emplace_back(new execution::ValueOperation(val_int));
+            Get_lex();
+        }catch (std::out_of_range& ex){
+            std::stringstream ss;
+            ss << "Integer is overflowed " << curr_lexeme;
+            throw std::runtime_error(ss.str());
+        }
+
+
     }else if(curr_type == keyword_true){
         st_types_val.push(keyword_boolean);
         bool val_bool=true;
@@ -1208,7 +1236,7 @@ void Parser::check_ID(std::string& name_ID) {
         st_types_val.push(TableID.at(name_ID).Get_Type());
     }else{
         std::stringstream ss;
-        ss << "Variable not declared " << name_ID;
+        ss << "Variable not declared " << curr_lexeme;
         throw std::runtime_error(ss.str());
     }
 }//Проверяет индефикатор на наличие в таблице переменных
@@ -1256,7 +1284,7 @@ void Parser::check_Operation() {
         st_types_val.push(type_ans);
     }else{
         std::stringstream ss;
-        ss << "Wrong types are in operation " << type_op;
+        ss << "Wrong types are in operation " << "Line " << curr_lexeme.Get_line_number();
         throw std::runtime_error(ss.str());
     }
 
@@ -1266,7 +1294,7 @@ void Parser::check_Operation() {
 void Parser::check_not() {
     if (st_types_val.top( ) != keyword_boolean ) {
         std::stringstream ss;
-        ss << "Wrong types are in operation not" ;
+        ss << "Wrong types are in operation not " << "Line" << curr_lexeme.Get_line_number();
         throw std::runtime_error(ss.str());
     }else{
         operations.push_back(execution::kUnaries.at(std::make_tuple(execution::Not, execution::Logic)));
@@ -1282,7 +1310,7 @@ void Parser::check_eq_two_last_types(){
         st_types_val.pop();
     }else{
         std::stringstream ss;
-        ss << "Wrong types are in := " ;
+        ss << "Wrong types are in := " << "Line " << curr_lexeme.Get_line_number();
         throw std::runtime_error(ss.str());
     }
 }//забирает два верних элемента из стека и проверяет на равенство
@@ -1292,7 +1320,7 @@ void Parser::check_is_bool() {
         st_types_val.pop();
     }else{
         std::stringstream ss;
-        ss << "Types in not bool " ;
+        ss << "Types in not bool " << "Line " << curr_lexeme.Get_line_number();
         throw std::runtime_error(ss.str());
     }
 }//забирает последний элемент и проверяет он bool
